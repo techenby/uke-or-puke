@@ -15,6 +15,7 @@ private enum UkeAudioStreamTests {
         run("starts exactly once on the first buffer", testFirstBufferStartsOnce)
         run("uses hardware sample time for elapsed and onset timing", testHardwareTiming)
         run("stabilizes fresh C and Am while ignoring the ringing tail", testFreshStrumsAndRingingTail)
+        run("scores a repeated strum of the same chord as a fresh attack", testRepeatedStrumsOfTheSameChord)
         run("emits analysis frames at approximately 10 Hz", testFrameRate)
         run("resets the analysis window and stability after a discontinuity", testDiscontinuity)
         run("reports clipping and rejects clipped or silent chords", testClippingAndSilence)
@@ -78,7 +79,8 @@ private enum UkeAudioStreamTests {
         try require(chord(in: cFrames[0]) == nil, "C was exposed before two agreeing frames")
         try require(chord(in: cFrames[1]) == "C", "C was not exposed on the second agreeing frame")
         try require(value("chordConfidence", in: cFrames[1]) >= 0.75, "stable C confidence was below 0.75")
-        try require(value("elapsedMs", in: cFrames[1]) - value("onsetMs", in: cFrames[1]) < 650, "C took at least 650 ms to stabilize")
+        let cStabilizedMs: Double = value("elapsedMs", in: cFrames[1]) - value("onsetMs", in: cFrames[1])
+        try require(cStabilizedMs < 650, "C took at least 650 ms to stabilize")
 
         let cTail = synthesizeChord(
             frequencies: [392.00, 261.63, 329.63, 523.25],
@@ -112,7 +114,46 @@ private enum UkeAudioStreamTests {
             tolerance: 0.01,
             message: "fresh Am onset"
         )
-        try require(value("elapsedMs", in: acceptedAm) - value("onsetMs", in: acceptedAm) < 650, "Am took at least 650 ms to stabilize")
+        let amStabilizedMs: Double = value("elapsedMs", in: acceptedAm) - value("onsetMs", in: acceptedAm)
+        try require(amStabilizedMs < 650, "Am took at least 650 ms to stabilize")
+    }
+
+    private static func testRepeatedStrumsOfTheSameChord() throws {
+        let stream = UkeAudioStream(sampleRate: sampleRate)
+        let cFrequencies = [392.00, 261.63, 329.63, 523.25]
+        var nextSample: Int64 = 600_000
+
+        let firstAttack = synthesizeChord(frequencies: cFrequencies, sampleCount: 13 * bufferSize, amplitude: 0.14)
+        let firstFrames = appendInChunks(firstAttack, to: stream, startingAt: nextSample)
+        nextSample += Int64(firstAttack.count)
+
+        let firstAccepted = try requireFrame(named: "C", in: firstFrames)
+        try require(value("strumId", in: firstAccepted) == 1, "first strum was not the first onset")
+
+        let decay = synthesizeChord(
+            frequencies: cFrequencies,
+            sampleCount: 5 * bufferSize,
+            amplitude: 0.004,
+            includeAttack: false
+        )
+        _ = appendInChunks(decay, to: stream, startingAt: nextSample)
+        nextSample += Int64(decay.count)
+
+        let secondAttackStart = nextSample
+        let secondAttack = synthesizeChord(frequencies: cFrequencies, sampleCount: 13 * bufferSize, amplitude: 0.14)
+        let secondFrames = appendInChunks(secondAttack, to: stream, startingAt: secondAttackStart)
+
+        try require(chord(in: secondFrames[0]) == nil, "repeated C was exposed before two agreeing frames")
+        let secondAccepted = try requireFrame(named: "C", in: secondFrames)
+        try require(value("strumId", in: secondAccepted) == 2, "repeating the same chord did not create a second onset")
+        try requireNear(
+            value("onsetMs", in: secondAccepted),
+            Double(secondAttackStart - 600_000) / sampleRate * 1_000,
+            tolerance: 0.01,
+            message: "repeated strum onset"
+        )
+        let stabilizedMs: Double = value("elapsedMs", in: secondAccepted) - value("onsetMs", in: secondAccepted)
+        try require(stabilizedMs < 650, "repeated C took at least 650 ms to stabilize")
     }
 
     private static func testFrameRate() throws {
@@ -170,7 +211,8 @@ private enum UkeAudioStreamTests {
 
         try require(value("clipped", in: clippedFrame), "clipped window was not flagged")
         try require(chord(in: clippedFrame) == nil, "clipped window exposed a chord")
-        try require(value("chordConfidence", in: clippedFrame) == 0, "clipped window exposed chord confidence")
+        let clippedConfidence: Double = value("chordConfidence", in: clippedFrame)
+        try require(clippedConfidence == 0, "clipped window exposed chord confidence")
 
         let silentStream = UkeAudioStream(sampleRate: sampleRate)
         let silence = [Float](repeating: 0, count: 8_192)
@@ -179,7 +221,8 @@ private enum UkeAudioStreamTests {
         try require(!value("clipped", in: silentFrame), "silence was marked clipped")
         try requireNear(value("level", in: silentFrame), 0, tolerance: 0, message: "silence level")
         try require(chord(in: silentFrame) == nil, "silence exposed a chord")
-        try require(value("chordConfidence", in: silentFrame) == 0, "silence exposed chord confidence")
+        let silentConfidence: Double = value("chordConfidence", in: silentFrame)
+        try require(silentConfidence == 0, "silence exposed chord confidence")
     }
 
     private static func appendInChunks(

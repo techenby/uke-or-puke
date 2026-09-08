@@ -65,6 +65,9 @@
             "@php artisan config:clear --ansi",
             "@php artisan test"
         ],
+        "test:swift": [
+            "packages/uke-audio/tests/swift/run.sh"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

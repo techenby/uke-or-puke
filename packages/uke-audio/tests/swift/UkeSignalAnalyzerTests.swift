@@ -107,7 +107,7 @@ private enum UkeSignalAnalyzerTests {
                             minimumConfidence[variant.name] = result.chordConfidence
                             minimumContext[variant.name] = "\(Int(sampleRate)) Hz, \(detuning) cents, amplitude \(amplitude)"
                         }
-                        if result.chordConfidence < 0.80 {
+                        if result.chordConfidence < 0.75 {
                             belowPHPThresholdCount[variant.name, default: 0] += 1
                         }
                     }
@@ -119,7 +119,7 @@ private enum UkeSignalAnalyzerTests {
             let confidence = minimumConfidence[variant.name] ?? 0
             let belowCount = belowPHPThresholdCount[variant.name] ?? 0
             let context = minimumContext[variant.name] ?? "unknown variant"
-            print(String(format: "  minimum %@ confidence: %.3f (%@); %d/12 below PHP 0.8", variant.name, confidence, context, belowCount))
+            print(String(format: "  minimum %@ confidence: %.3f (%@); %d/12 below the PHP 0.75 chord gate", variant.name, confidence, context, belowCount))
             try require(confidence >= 0.75, "minimum \(variant.name) confidence was \(confidence), below the recommended 0.75 threshold")
         }
     }
