@@ -2,6 +2,7 @@
 
 namespace App\NativeComponents;
 
+use App\Models\Score;
 use App\Support\BeginnerLesson;
 use App\Support\Concerns\ListensToUkulele;
 use Illuminate\View\View;
@@ -52,6 +53,8 @@ class Arcade extends NativeComponent
     /** @var array<int, string> */
     public array $judgments = [];
 
+    public int $rank = 0;
+
     public function mount(): void
     {
         $speed = $this->data('speed', 'normal');
@@ -69,6 +72,7 @@ class Arcade extends NativeComponent
         }
 
         $this->score = $this->streak = $this->bestStreak = 0;
+        $this->rank = 0;
         $this->judgments = [];
         $this->heardCues = [];
         $this->elapsedMs = 0;
@@ -184,6 +188,7 @@ class Arcade extends NativeComponent
             if ($this->inputMode === 'microphone') {
                 $this->stopMicrophone();
             }
+            $this->recordScore();
         } elseif ($this->elapsedMs > $this->feedbackUntilMs) {
             $this->feedback = $this->elapsedMs < $this->barMs() ? 'Get ready…' : 'Follow the rainbow';
             $this->mood = 'happy';
@@ -245,6 +250,11 @@ class Arcade extends NativeComponent
         $this->back();
     }
 
+    public function scores(): void
+    {
+        $this->navigate('/scores');
+    }
+
     public function onBackPressed(): void
     {
         if ($this->status === 'playing') {
@@ -257,6 +267,25 @@ class Arcade extends NativeComponent
     private function clockMs(): float
     {
         return now()->getTimestampMs();
+    }
+
+    private function recordScore(): void
+    {
+        if ($this->demo) {
+            return;
+        }
+
+        $score = Score::create([
+            'points' => $this->score,
+            'hits' => count(array_filter($this->judgments, fn (string $judgment): bool => in_array($judgment, ['perfect', 'good'], true))),
+            'perfect' => count(array_filter($this->judgments, fn (string $judgment): bool => $judgment === 'perfect')),
+            'best_streak' => $this->bestStreak,
+            'input_mode' => $this->inputMode,
+            'speed' => $this->speed,
+            'bpm' => $this->bpm,
+        ]);
+
+        $this->rank = $score->rank();
     }
 
     private function awardHit(int $index, float $offset): void
@@ -302,6 +331,8 @@ class Arcade extends NativeComponent
             'perfect' => count(array_filter($this->judgments, fn (string $value): bool => $value === 'perfect')),
             'unclear' => count(array_filter($this->judgments, fn (string $value): bool => $value === 'unclear')),
             'seconds' => (int) ceil(max(0, 9 * $bar - $this->elapsedMs) / 1000),
+            'onBoard' => $this->rank > 0 && $this->rank <= Score::BOARD_SIZE,
+            'boardSize' => Score::BOARD_SIZE,
         ]);
     }
 }

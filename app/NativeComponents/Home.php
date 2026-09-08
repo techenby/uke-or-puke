@@ -2,6 +2,7 @@
 
 namespace App\NativeComponents;
 
+use App\Models\Score;
 use App\Support\BeginnerLesson;
 use Illuminate\View\View;
 use Native\Mobile\Edge\NativeComponent;
@@ -53,8 +54,17 @@ class Home extends NativeComponent
         $this->navigate('/soundcheck');
     }
 
+    public function scores(): void
+    {
+        $this->navigate('/scores');
+    }
+
     public function render(): View
     {
-        return view('native.home', ['tempos' => BeginnerLesson::TEMPOS]);
+        return view('native.home', [
+            'tempos' => BeginnerLesson::TEMPOS,
+            'best' => Score::query()->best()->first(),
+            'boardSize' => Score::BOARD_SIZE,
+        ]);
     }
 }

@@ -67,6 +67,30 @@
                 <native:button label="Watch a demo" @tap="demo" variant="secondary" size="lg" class="w-full" />
                 <native:text class="text-base text-center text-theme-on-surface-variant">Play C and Am with microphone feedback, or choose Let's jam to practice screen taps. Visual beats only.</native:text>
             </native:column>
+            <native:column class="w-full gap-3">
+                <native:row class="w-full items-center justify-between">
+                    <native:text class="text-base font-semibold text-theme-on-background">High scores</native:text>
+                    <native:text class="text-sm font-mono text-theme-on-surface-variant">TOP {{ $boardSize }}</native:text>
+                </native:row>
+                @if ($best)
+                    <native:row class="w-full items-center gap-4 p-4 bg-theme-surface rounded-lg border border-theme-outline" a11y-label="Best round, {{ $best->points }} points, {{ $best->playedWithUkulele() ? 'ukulele' : 'taps' }}">
+                        <native:column class="items-center gap-1">
+                            <native:text class="text-sm font-mono text-theme-on-surface-variant">BEST</native:text>
+                            <native:text font="headline" class="text-3xl text-theme-sun">{{ str_pad((string) $best->points, 3, '0', STR_PAD_LEFT) }}</native:text>
+                        </native:column>
+                        <native:column class="flex-1 gap-1">
+                            <native:text class="text-base text-theme-on-surface">{{ $best->playedWithUkulele() ? 'Ukulele' : 'Taps' }} · {{ $best->hits }} of {{ count(\App\Support\BeginnerLesson::CHORDS) }} on time</native:text>
+                            <native:text class="text-sm font-mono text-theme-on-surface-variant">{{ strtoupper($best->speed) }} / {{ $best->bpm }} BPM</native:text>
+                        </native:column>
+                    </native:row>
+                @else
+                    <native:column class="w-full p-4 gap-1 bg-theme-surface rounded-lg border border-theme-outline">
+                        <native:text class="text-base text-theme-on-surface">The board is empty.</native:text>
+                        <native:text class="text-base text-theme-on-surface-variant">Play one round and every place on it is yours.</native:text>
+                    </native:column>
+                @endif
+                <native:button label="See the high scores" @tap="scores" variant="secondary" class="w-full" />
+            </native:column>
             <native:text class="text-sm text-center font-mono text-theme-on-surface-variant">ORIGINAL EXERCISE / NO SONG REQUIRED</native:text>
         </native:column>
     </native:scroll-view>

@@ -2,7 +2,7 @@ name: uke-or-puke
 icon: null
 processes:
   Watch:
-    command: php artisan native:run ios --watch
+    command: php artisan native:run ios C71B7272-1A77-4244-910F-137498BA4657 --watch
     working_dir: null
     auto_start: false
     auto_restart: false

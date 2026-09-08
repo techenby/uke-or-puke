@@ -25,6 +25,13 @@
                         <native:text font="headline" class="text-5xl text-theme-mint">{{ $score }}</native:text>
                         <native:text class="text-base text-theme-on-surface-variant">of 800 possible points</native:text>
                     </native:column>
+                    @if ($onBoard)
+                        <native:row class="w-full items-center justify-center p-3 bg-theme-sun/15 rounded-lg border border-theme-sun">
+                            <native:text font="headline" class="text-xl text-center text-theme-sun">{{ $rank === 1 ? 'NEW HIGH SCORE' : 'NO. '.$rank.' ON THE BOARD' }}</native:text>
+                        </native:row>
+                    @else
+                        <native:text class="text-base text-center text-theme-on-surface-variant">Round saved. No. {{ $rank }} overall — the top {{ $boardSize }} is still up for grabs.</native:text>
+                    @endif
                     <native:row class="w-full gap-3 justify-between">
                         <native:column class="flex-1 items-center gap-1">
                             <native:text class="text-2xl font-semibold text-theme-pink">{{ $accuracy }}%</native:text>
@@ -44,6 +51,9 @@
                     <native:text class="text-base text-center text-theme-on-surface-variant">Demo complete. No score was recorded. When you’re ready, try tapping along from Home.</native:text>
                 @endif
                 <native:button label="{{ $demo ? 'Watch again' : 'Play again' }}" size="lg" @tap="start" class="w-full" />
+                @if (! $demo)
+                    <native:button label="See the high scores" variant="secondary" @tap="scores" class="w-full" />
+                @endif
                 <native:button label="Change pace" variant="secondary" @tap="home" />
             @else
                 <native:row class="w-full items-center justify-between">

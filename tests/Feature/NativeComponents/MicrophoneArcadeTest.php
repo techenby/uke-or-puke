@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Score;
 use App\NativeComponents\Arcade;
 use Native\Mobile\Testing\Native;
 use UkeOrPuke\Audio\Events\AudioFrame;
@@ -120,4 +121,5 @@ it('finishes microphone rounds and releases the input', function () {
     $round->firePoll('tick')->assertSet('status', 'finished')->assertSet('score', 800)
         ->assertSet('audioSession', '')->assertSee('8 of 8 chords matched on time.')
         ->assertNativeCalled('UkeAudio.Stop', fn (array $params): bool => $params['sessionId'] === $session);
+    expect(Score::sole()->input_mode)->toBe('microphone');
 });
