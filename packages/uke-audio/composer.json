@@ -1,6 +1,6 @@
 {
     "name": "uke-or-puke/audio",
-    "description": "On-device ukulele microphone analysis for iOS",
+    "description": "On-device ukulele microphone analysis for iOS and Android",
     "type": "nativephp-plugin",
     "license": "MIT",
     "require": {

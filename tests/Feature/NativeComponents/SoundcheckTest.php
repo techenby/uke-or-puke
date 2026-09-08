@@ -23,11 +23,11 @@ it('shows permission denial and allows a fresh listening attempt', function () {
 });
 
 it('reports an unavailable native plugin without claiming to listen', function () {
-    Native::fakeBridge()->respondTo('UkeAudio.Start', ['status' => 'error', 'message' => 'Rebuild the iPhone app.'])->respondTo('UkeAudio.Stop', ['success' => true]);
+    Native::fakeBridge()->respondTo('UkeAudio.Start', ['status' => 'error', 'message' => 'Rebuild the app.'])->respondTo('UkeAudio.Stop', ['success' => true]);
 
     Native::test(Soundcheck::class)->tap('Start listening')
         ->assertSet('microphoneStatus', 'error')->assertSet('audioSession', '')
-        ->assertSee('Rebuild the iPhone app.');
+        ->assertSee('Rebuild the app.');
 });
 
 it('checks exact standard tuning including octave and cents', function (int $midi, float $cents, bool $matched, string $feedback) {

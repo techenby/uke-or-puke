@@ -4,20 +4,26 @@
     "description": "Live, on-device ukulele note and C/Am analysis",
     "namespace": "UkeAudio",
     "platforms": [
-        "ios"
+        "ios",
+        "android"
     ],
     "bridge_functions": [
         {
             "name": "UkeAudio.Start",
-            "ios": "UkeAudioFunctions.Start"
+            "ios": "UkeAudioFunctions.Start",
+            "android": "com.ukeorpuke.audio.UkeAudioFunctions.Start"
         },
         {
             "name": "UkeAudio.Stop",
-            "ios": "UkeAudioFunctions.Stop"
+            "ios": "UkeAudioFunctions.Stop",
+            "android": "com.ukeorpuke.audio.UkeAudioFunctions.Stop"
         }
     ],
     "android": {
-        "min_version": "26"
+        "min_version": 26,
+        "permissions": [
+            "android.permission.RECORD_AUDIO"
+        ]
     },
     "ios": {
         "min_version": "18.0",

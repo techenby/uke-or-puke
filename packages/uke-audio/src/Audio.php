@@ -20,12 +20,12 @@ class Audio
     private function call(string $method, array $parameters): void
     {
         if (! function_exists('nativephp_call')) {
-            throw new RuntimeException('Microphone play needs the iPhone app.');
+            throw new RuntimeException('Microphone play needs the phone app.');
         }
 
         $result = json_decode(nativephp_call($method, json_encode($parameters, JSON_THROW_ON_ERROR)) ?? 'null', true);
         if (! is_array($result) || ($result['success'] ?? false) !== true) {
-            throw new RuntimeException($result['message'] ?? 'Microphone support is unavailable. Rebuild the iPhone app with the audio plugin.');
+            throw new RuntimeException($result['message'] ?? 'Microphone support is unavailable. Rebuild the app with the audio plugin.');
         }
     }
 }

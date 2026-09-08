@@ -51,6 +51,18 @@ Registered in `app/Providers/NativeServiceProvider.php`:
 
 - `NativeUIServiceProvider` — SuperNative EDGE UI
 - `BrowserServiceProvider` — system / in-app browser and OAuth sessions
+- `AudioServiceProvider` — `packages/uke-audio`, this repo's own plugin: microphone capture and
+  on-device note/chord analysis, in Swift for iOS and Kotlin for Android
+
+The two native analyzers are twins and must stay in step — the confidence thresholds they feed live in
+PHP, so a divergence means one platform silently rejects chords the other accepts. Both are covered by
+suites that run on the host, no device needed:
+
+```
+composer test:swift     # add --debug via tests/swift/run.sh --debug for an -Onone build
+
+composer test:kotlin
+```
 
 Installing a plugin takes four steps, not one. An installed-but-unregistered plugin fails silently:
 
