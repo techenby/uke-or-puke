@@ -30,3 +30,12 @@ public/vibe/
 
 # Prompt log scratch
 /tests/tmp
+
+# Boost-generated agent files
+/.agents
+/.codex
+/.claude/skills
+/AGENTS.md
+/CLAUDE.md
+/boost.json
+/.mcp.json
