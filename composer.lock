@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7c800c3aa506e775bef8eb642e5b7c74",
+    "content-hash": "659f1ffaf5040cefcca7f5e66210a023",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -6748,6 +6748,42 @@
                 "source": "https://github.com/tijsverkoyen/CssToInlineStyles/tree/v2.4.0"
             },
             "time": "2025-12-02T11:56:42+00:00"
+        },
+        {
+            "name": "uke-or-puke/audio",
+            "version": "0.1.0",
+            "dist": {
+                "type": "path",
+                "url": "packages/uke-audio",
+                "reference": "89b477df59688e1649c1a4b75e7c3e586fafdede"
+            },
+            "require": {
+                "nativephp/mobile": "^4.0",
+                "php": "^8.2"
+            },
+            "type": "nativephp-plugin",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "UkeOrPuke\\Audio\\AudioServiceProvider"
+                    ]
+                },
+                "nativephp": {
+                    "manifest": "nativephp.json"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "UkeOrPuke\\Audio\\": "src/"
+                }
+            },
+            "license": [
+                "MIT"
+            ],
+            "description": "On-device ukulele microphone analysis for iOS",
+            "transport-options": {
+                "relative": true
+            }
         },
         {
             "name": "vlucas/phpdotenv",

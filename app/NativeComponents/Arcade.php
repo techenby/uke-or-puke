@@ -3,12 +3,26 @@
 namespace App\NativeComponents;
 
 use App\Support\BeginnerLesson;
+use App\Support\Concerns\ListensToUkulele;
 use Illuminate\View\View;
+use Native\Mobile\Attributes\On;
 use Native\Mobile\Attributes\Poll;
 use Native\Mobile\Edge\NativeComponent;
+use UkeOrPuke\Audio\Events\AudioFrame;
 
 class Arcade extends NativeComponent
 {
+    use ListensToUkulele;
+
+    public string $inputMode = 'tap';
+
+    public float $audioOffsetMs = 0;
+
+    public int $lastStrumId = 0;
+
+    /** @var array<int, string> */
+    public array $heardCues = [];
+
     public string $status = 'ready';
 
     public string $speed = 'normal';
@@ -44,6 +58,8 @@ class Arcade extends NativeComponent
         $this->speed = isset(BeginnerLesson::TEMPOS[$speed]) ? $speed : 'normal';
         $this->bpm = BeginnerLesson::TEMPOS[$this->speed];
         $this->demo = (bool) $this->data('demo', false);
+        $this->inputMode = ! $this->demo && $this->data('inputMode') === 'microphone' ? 'microphone' : 'tap';
+        $this->setupMicrophone();
     }
 
     public function start(): void
@@ -54,13 +70,78 @@ class Arcade extends NativeComponent
 
         $this->score = $this->streak = $this->bestStreak = 0;
         $this->judgments = [];
+        $this->heardCues = [];
         $this->elapsedMs = 0;
         $this->lastTapMs = -1000;
         $this->feedbackUntilMs = 0;
         $this->feedback = 'Get ready…';
         $this->mood = 'happy';
-        $this->startedAtMs = $this->clockMs();
-        $this->status = 'playing';
+        $this->beginInput();
+    }
+
+    private function beginInput(): void
+    {
+        if ($this->inputMode === 'microphone') {
+            $this->audioOffsetMs = $this->elapsedMs;
+            $this->lastStrumId = 0;
+            $this->status = 'requesting';
+            $this->startMicrophone();
+        } else {
+            $this->startedAtMs = $this->clockMs() - $this->elapsedMs;
+            $this->status = 'playing';
+        }
+    }
+
+    protected function microphoneReady(float $startedAtMs): void
+    {
+        if ($this->status === 'requesting') {
+            $this->startedAtMs = $startedAtMs - $this->audioOffsetMs;
+            $this->status = 'playing';
+        }
+    }
+
+    protected function microphoneInterrupted(): void
+    {
+        if (in_array($this->status, ['playing', 'requesting'], true)) {
+            $this->status = 'paused';
+        }
+    }
+
+    #[On(AudioFrame::class)]
+    public function audioFrame(string $sessionId, float $elapsedMs, float $level, mixed $chord = null, float $chordConfidence = 0, mixed $onsetMs = null, int $strumId = 0, bool $clipped = false): void
+    {
+        if ($this->inputMode !== 'microphone' || $this->status !== 'playing'
+            || ! $this->acceptAudioFrame($sessionId, $elapsedMs, $level)) {
+            return;
+        }
+        if ($onsetMs === null || $strumId <= $this->lastStrumId || $strumId <= 0
+            || $elapsedMs - (float) $onsetMs > 650 || (float) $onsetMs > $elapsedMs) {
+            return;
+        }
+        $onset = (float) $onsetMs + $this->audioOffsetMs;
+        foreach (BeginnerLesson::CHORDS as $index => $target) {
+            $offset = abs($onset - ($index + 1) * $this->barMs());
+            if (isset($this->judgments[$index]) || $offset > 240) {
+                continue;
+            }
+            $this->heardCues[$index] = 'unclear';
+            if ($clipped || $level < 0.006 || $chordConfidence < 0.75 || ! in_array($chord, ['C', 'Am'], true)) {
+                $this->showFeedback($clipped ? 'A little farther from the phone' : 'Can’t tell yet — keep strumming', 'happy');
+
+                return;
+            }
+            $this->lastStrumId = $strumId;
+            if ($chord !== $target) {
+                $this->judgments[$index] = 'wrong';
+                $this->streak = 0;
+                $this->showFeedback('Heard '.$chord.' — try '.$target, 'miss');
+
+                return;
+            }
+            $this->awardHit($index, $offset);
+
+            return;
+        }
     }
 
     public function barMs(): float
@@ -71,6 +152,9 @@ class Arcade extends NativeComponent
     #[Poll(100)]
     public function tick(): void
     {
+        if ($this->inputMode === 'microphone') {
+            $this->checkMicrophoneConnection();
+        }
         if ($this->status !== 'playing') {
             return;
         }
@@ -85,15 +169,21 @@ class Arcade extends NativeComponent
             if ($this->demo && $this->elapsedMs >= $due) {
                 $this->judgments[$index] = 'demo';
                 $this->showFeedback('Strum '.$chord, 'happy');
-            } elseif (! $this->demo && $this->elapsedMs > $due + 240) {
-                $this->judgments[$index] = 'miss';
-                $this->streak = 0;
-                $this->showFeedback('Splat! Keep going.', 'miss');
+            } elseif (! $this->demo && $this->elapsedMs > $due + ($this->inputMode === 'microphone' ? 950 : 240)) {
+                $unclear = ($this->heardCues[$index] ?? null) === 'unclear';
+                $this->judgments[$index] = $unclear ? 'unclear' : 'miss';
+                if (! $unclear) {
+                    $this->streak = 0;
+                }
+                $this->showFeedback($unclear ? 'Couldn’t hear that one. Keep going!' : 'Splat! Keep going.', $unclear ? 'happy' : 'miss');
             }
         }
 
         if ($this->elapsedMs >= (count(BeginnerLesson::CHORDS) + 1) * $this->barMs()) {
             $this->status = 'finished';
+            if ($this->inputMode === 'microphone') {
+                $this->stopMicrophone();
+            }
         } elseif ($this->elapsedMs > $this->feedbackUntilMs) {
             $this->feedback = $this->elapsedMs < $this->barMs() ? 'Get ready…' : 'Follow the rainbow';
             $this->mood = 'happy';
@@ -102,7 +192,7 @@ class Arcade extends NativeComponent
 
     public function strum(): void
     {
-        if ($this->status !== 'playing' || $this->demo) {
+        if ($this->status !== 'playing' || $this->demo || $this->inputMode === 'microphone') {
             return;
         }
 
@@ -118,12 +208,7 @@ class Arcade extends NativeComponent
             }
             $offset = abs($this->elapsedMs - ($index + 1) * $this->barMs());
             if ($offset <= 240) {
-                $perfect = $offset <= 90;
-                $this->judgments[$index] = $perfect ? 'perfect' : 'good';
-                $this->score += $perfect ? 100 : 70;
-                $this->streak++;
-                $this->bestStreak = max($this->bestStreak, $this->streak);
-                $this->showFeedback($perfect ? 'Uke-tastic!' : 'Nice strum!', 'happy');
+                $this->awardHit($index, $offset);
 
                 return;
             }
@@ -139,6 +224,9 @@ class Arcade extends NativeComponent
             $this->tick();
             if ($this->status === 'playing') {
                 $this->status = 'paused';
+                if ($this->inputMode === 'microphone') {
+                    $this->stopMicrophone();
+                }
             }
         }
     }
@@ -146,13 +234,13 @@ class Arcade extends NativeComponent
     public function resume(): void
     {
         if ($this->status === 'paused') {
-            $this->startedAtMs = $this->clockMs() - $this->elapsedMs;
-            $this->status = 'playing';
+            $this->beginInput();
         }
     }
 
     public function home(): void
     {
+        $this->stopMicrophone();
         $this->status = 'ready';
         $this->back();
     }
@@ -169,6 +257,16 @@ class Arcade extends NativeComponent
     private function clockMs(): float
     {
         return now()->getTimestampMs();
+    }
+
+    private function awardHit(int $index, float $offset): void
+    {
+        $perfect = $offset <= 90;
+        $this->judgments[$index] = $perfect ? 'perfect' : 'good';
+        $this->score += $perfect ? 100 : 70;
+        $this->streak++;
+        $this->bestStreak = max($this->bestStreak, $this->streak);
+        $this->showFeedback($perfect ? 'Uke-tastic!' : 'Nice strum!', 'happy');
     }
 
     private function showFeedback(string $text, string $mood): void
@@ -202,6 +300,7 @@ class Arcade extends NativeComponent
             'hits' => $hits,
             'accuracy' => (int) round($hits / 8 * 100),
             'perfect' => count(array_filter($this->judgments, fn (string $value): bool => $value === 'perfect')),
+            'unclear' => count(array_filter($this->judgments, fn (string $value): bool => $value === 'unclear')),
             'seconds' => (int) ceil(max(0, 9 * $bar - $this->elapsedMs) / 1000),
         ]);
     }

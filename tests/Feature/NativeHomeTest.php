@@ -6,7 +6,7 @@ it('renders the first lesson as a native screen with safe areas', function () {
     Native::visit('/')
         ->assertSee('Your first little jam')
         ->assertSee('The rainbow switch')
-        ->assertSee('This preview uses visual beats and does not listen.')
+        ->assertSee('Play C and Am with microphone feedback')
         ->assertElement('column', fn (array $node): bool => ($node['ref'] ?? null) === 'home-screen'
             && ($node['layout']['width'] ?? null) === 'fill'
             && ($node['layout']['height'] ?? null) === 'fill'

@@ -1,0 +1,33 @@
+{
+    "name": "uke-or-puke/audio",
+    "version": "0.1.0",
+    "description": "Live, on-device ukulele note and C/Am analysis",
+    "namespace": "UkeAudio",
+    "platforms": [
+        "ios"
+    ],
+    "bridge_functions": [
+        {
+            "name": "UkeAudio.Start",
+            "ios": "UkeAudioFunctions.Start"
+        },
+        {
+            "name": "UkeAudio.Stop",
+            "ios": "UkeAudioFunctions.Stop"
+        }
+    ],
+    "android": {
+        "min_version": "26"
+    },
+    "ios": {
+        "min_version": "18.0",
+        "info_plist": {
+            "NSMicrophoneUsageDescription": "Listen to your ukulele to show notes and check chords as you play."
+        }
+    },
+    "events": [
+        "UkeOrPuke\\Audio\\Events\\AudioStatus",
+        "UkeOrPuke\\Audio\\Events\\AudioFrame"
+    ],
+    "service_provider": "UkeOrPuke\\Audio\\AudioServiceProvider"
+}

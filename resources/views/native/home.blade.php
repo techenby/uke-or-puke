@@ -61,9 +61,11 @@
                 </native:row>
             </native:column>
             <native:column class="w-full gap-2">
+                <native:button label="Play with your ukulele" @tap="microphone" size="lg" class="w-full" />
+                <native:button label="Microphone soundcheck" @tap="soundcheck" variant="secondary" class="w-full" />
                 <native:button label="Let's jam" @tap="start" size="lg" class="w-full" />
                 <native:button label="Watch a demo" @tap="demo" variant="secondary" size="lg" class="w-full" />
-                <native:text class="text-base text-center text-theme-on-surface-variant">Tap along to score, or watch with your uke. This preview uses visual beats and does not listen.</native:text>
+                <native:text class="text-base text-center text-theme-on-surface-variant">Play C and Am with microphone feedback, or choose Let's jam to practice screen taps. Visual beats only.</native:text>
             </native:column>
             <native:text class="text-sm text-center font-mono text-theme-on-surface-variant">ORIGINAL EXERCISE / NO SONG REQUIRED</native:text>
         </native:column>

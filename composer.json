@@ -12,6 +12,11 @@
     "license": "MIT",
     "repositories": [
         {
+            "type": "path",
+            "url": "packages/uke-audio",
+            "options": { "versions": { "uke-or-puke/audio": "0.1.0" } }
+        },
+        {
             "name": "nativephp-plugins",
             "type": "composer",
             "url": "https://plugins.nativephp.com"
@@ -23,7 +28,8 @@
         "laravel/tinker": "^3.0",
         "nativephp/mobile": "^4.0",
         "nativephp/mobile-browser": "^1.0",
-        "nativephp/mobile-ui": "^0.3"
+        "nativephp/mobile-ui": "^0.3",
+        "uke-or-puke/audio": "0.1.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

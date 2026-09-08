@@ -1,0 +1,25 @@
+{
+    "name": "uke-or-puke/audio",
+    "description": "On-device ukulele microphone analysis for iOS",
+    "type": "nativephp-plugin",
+    "license": "MIT",
+    "require": {
+        "php": "^8.2",
+        "nativephp/mobile": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "UkeOrPuke\\Audio\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "UkeOrPuke\\Audio\\AudioServiceProvider"
+            ]
+        },
+        "nativephp": {
+            "manifest": "nativephp.json"
+        }
+    }
+}

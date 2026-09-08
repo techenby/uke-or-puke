@@ -3,7 +3,7 @@
         <native:column class="w-full p-4 gap-3">
             <native:row class="w-full items-center justify-between gap-3">
                 <native:column class="flex-1 gap-1">
-                    <native:text class="text-sm font-mono text-theme-mint">{{ $demo ? 'DEMO / AUTO PLAY' : 'ARCADE / TAP TO PLAY' }}</native:text>
+                    <native:text class="text-sm font-mono text-theme-mint">{{ $demo ? 'DEMO / AUTO PLAY' : ($inputMode === 'microphone' ? 'ARCADE / UKULELE' : 'ARCADE / TAP TO PLAY') }}</native:text>
                     <native:text class="text-xl font-semibold text-theme-on-background">The rainbow switch</native:text>
                 </native:column>
                 @if ($status === 'playing')
@@ -21,7 +21,7 @@
                 </native:column>
                 @if (! $demo)
                     <native:column class="w-full items-center p-5 gap-2 bg-theme-surface rounded-lg">
-                        <native:text class="text-sm font-mono text-theme-on-surface-variant">TAP TIMING SCORE</native:text>
+                        <native:text class="text-sm font-mono text-theme-on-surface-variant">{{ $inputMode === 'microphone' ? 'CHORD + TIMING SCORE' : 'TAP TIMING SCORE' }}</native:text>
                         <native:text font="headline" class="text-5xl text-theme-mint">{{ $score }}</native:text>
                         <native:text class="text-base text-theme-on-surface-variant">of 800 possible points</native:text>
                     </native:column>
@@ -39,7 +39,7 @@
                             <native:text class="text-base text-theme-on-surface-variant">Perfect</native:text>
                         </native:column>
                     </native:row>
-                    <native:text class="text-base text-center text-theme-on-surface-variant">{{ $hits }} of 8 cues hit. {{ 8 - $hits }} splats. These results measure screen taps, not your ukulele.</native:text>
+                    <native:text class="text-base text-center text-theme-on-surface-variant">{{ $inputMode === 'microphone' ? $hits.' of 8 chords matched on time. '.$unclear.' unclear; no streak penalty. '.(8 - $hits - $unclear).' splats.' : $hits.' of 8 cues hit. '.(8 - $hits).' splats. These results measure screen taps, not your ukulele.' }}</native:text>
                 @else
                     <native:text class="text-base text-center text-theme-on-surface-variant">Demo complete. No score was recorded. When you’re ready, try tapping along from Home.</native:text>
                 @endif
@@ -96,11 +96,19 @@
                     </native:column>
                 </native:row>
                 @if ($status === 'ready')
-                    <native:text class="text-base text-center text-theme-on-surface-variant">{{ $demo ? 'Watch the cues and strum your uke as each card’s center crosses the line. This is an automatic, unscored demo.' : 'Tap STRUM as each card’s center crosses the yellow line. The four-count gives you time to get ready.' }}</native:text>
+                    <native:text class="text-base text-center text-theme-on-surface-variant">{{ $demo ? 'Watch the cues and strum your uke as each card’s center crosses the line. This is an automatic, unscored demo.' : ($inputMode === 'microphone' ? 'Strum the shown chord as its card crosses the yellow line. Allow microphone access, then follow the four-count. Standard high-G tuning only.' : 'Tap STRUM as each card’s center crosses the yellow line. The four-count gives you time to get ready.') }}</native:text>
                     <native:button label="{{ $demo ? 'Start demo' : 'Start arcade' }}" size="lg" @tap="start" class="w-full" />
                 @elseif ($status === 'paused')
+                    @if ($inputMode === 'microphone')
+                        <native:text class="text-base text-center text-theme-on-surface-variant">{{ $microphoneMessage }}</native:text>
+                        @if ($microphoneStatus === 'denied')
+                            <native:button label="Open Settings" @tap="microphoneSettings" variant="secondary" />
+                        @endif
+                    @endif
                     <native:button label="Keep going" size="lg" @tap="resume" class="w-full" />
                     <native:button label="Leave round" variant="secondary" @tap="home" />
+                @elseif ($status === 'requesting')
+                    <native:text class="text-base text-center text-theme-on-surface-variant">{{ $microphoneMessage }}</native:text>
                 @else
                     <native:row class="w-full items-center justify-center gap-3 h-[60]">
                         <native:pixel-pal :mood="$mood" key="feedback-pal" />
@@ -114,12 +122,19 @@
         <native:column class="w-full px-4 py-3 gap-2 bg-theme-background">
             @if ($demo)
                 <native:text class="text-base text-center text-theme-mint">Auto play · Strum along on your uke.</native:text>
+            @elseif ($inputMode === 'microphone')
+                <native:text class="text-base text-center text-theme-mint">Listening · Strum your ukulele</native:text>
+                <native:row class="w-full gap-1 h-[8]" a11y-label="Microphone level {{ $inputLevel }} of 10">
+                    @foreach (range(1, 10) as $segment)
+                        <native:rect class="flex-1 h-[8] {{ $segment <= $inputLevel ? 'bg-theme-mint' : 'bg-theme-outline' }}" />
+                    @endforeach
+                </native:row>
             @else
                 <native:pressable ref="strum" @tap="strum" :press-scale="0.96" a11y-label="Strum. Tap when the chord reaches the yellow line." class="w-full h-[56] items-center justify-center bg-theme-mint rounded-lg">
                     <native:text font="pixel" class="text-base text-theme-ink">STRUM ↓</native:text>
                 </native:pressable>
             @endif
-            <native:text class="text-sm text-center text-theme-on-surface-variant">Visual beats · Microphone off</native:text>
+            <native:text class="text-sm text-center text-theme-on-surface-variant">{{ $inputMode === 'microphone' ? 'Visual beats · Audio stays on your phone' : 'Visual beats · Microphone off' }}</native:text>
         </native:column>
     @endif
 </native:column>

@@ -43,6 +43,16 @@ class Home extends NativeComponent
         $this->navigate('/arcade', ['speed' => $this->speed, 'demo' => true]);
     }
 
+    public function microphone(): void
+    {
+        $this->navigate('/arcade', ['speed' => $this->speed, 'inputMode' => 'microphone']);
+    }
+
+    public function soundcheck(): void
+    {
+        $this->navigate('/soundcheck');
+    }
+
     public function render(): View
     {
         return view('native.home', ['tempos' => BeginnerLesson::TEMPOS]);
