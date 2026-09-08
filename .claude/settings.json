@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" && php artisan prompts:sync --quiet-summary 2>/dev/null || true",
+            "statusMessage": "Updating prompt log",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

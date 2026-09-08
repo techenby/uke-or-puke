@@ -8,3 +8,10 @@ processes:
     auto_restart: false
     restart_when_changed: []
     env: {}
+  Prompt log:
+    command: php artisan prompts:sync --watch=120 --quiet-summary
+    working_dir: null
+    auto_start: true
+    auto_restart: true
+    restart_when_changed: []
+    env: {}

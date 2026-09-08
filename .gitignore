@@ -27,3 +27,6 @@ Thumbs.db
 # Vibe service (deployed separately from R2)
 vibe-service/
 public/vibe/
+
+# Prompt log scratch
+/tests/tmp
