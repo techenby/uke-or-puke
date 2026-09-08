@@ -1,3 +1,4 @@
+import Accelerate
 import Foundation
 
 struct UkeAnalysis {
@@ -14,6 +15,26 @@ final class UkeSignalAnalyzer {
     private let minimumSampleCount = 512
     private let maximumSampleCount = 8_192
     private let silenceLevel = 0.002
+
+    /// `makeSpectrum` pads the window to four times its length, and the window is capped at
+    /// `maximumSampleCount`, so one setup at this size serves every transform the analyzer runs.
+    private static let maximumFFTSize = 32_768
+    private let fftSetup: FFTSetupD
+
+    init() {
+        guard let setup = vDSP_create_fftsetupD(
+            vDSP_Length(log2(Double(Self.maximumFFTSize))),
+            FFTRadix(kFFTRadix2)
+        ) else {
+            preconditionFailure("Could not allocate the FFT setup for audio analysis.")
+        }
+
+        fftSetup = setup
+    }
+
+    deinit {
+        vDSP_destroy_fftsetupD(fftSetup)
+    }
 
     func analyze(samples: [Float], sampleRate: Double) -> UkeAnalysis {
         let finiteSamples = samples.map { $0.isFinite ? Double($0) : 0.0 }
@@ -68,75 +89,58 @@ final class UkeSignalAnalyzer {
 
     private func makeSpectrum(samples: [Double], sampleRate: Double) -> Spectrum {
         let sampleCount = samples.count
-        let fftSize = nextPowerOfTwo(max(2_048, sampleCount * 4))
+        let fftSize = min(Self.maximumFFTSize, nextPowerOfTwo(max(2_048, sampleCount * 4)))
+        let halfSize = fftSize / 2
         let mean = samples.reduce(0, +) / Double(sampleCount)
-        var real = [Double](repeating: 0, count: fftSize)
-        var imaginary = [Double](repeating: 0, count: fftSize)
+        var signal = [Double](repeating: 0, count: fftSize)
 
         for index in samples.indices {
             let window = 0.5 - 0.5 * cos(2 * Double.pi * Double(index) / Double(sampleCount - 1))
-            real[index] = (samples[index] - mean) * window
+            signal[index] = (samples[index] - mean) * window
         }
 
-        fastFourierTransform(real: &real, imaginary: &imaginary)
+        var realParts = [Double](repeating: 0, count: halfSize)
+        var imaginaryParts = [Double](repeating: 0, count: halfSize)
+        var magnitudes = [Double](repeating: 0, count: halfSize)
 
-        let magnitudes = (0..<(fftSize / 2)).map { index in
-            hypot(real[index], imaginary[index])
+        realParts.withUnsafeMutableBufferPointer { realBuffer in
+            imaginaryParts.withUnsafeMutableBufferPointer { imaginaryBuffer in
+                var split = DSPDoubleSplitComplex(
+                    realp: realBuffer.baseAddress!,
+                    imagp: imaginaryBuffer.baseAddress!
+                )
+
+                signal.withUnsafeBufferPointer { signalBuffer in
+                    signalBuffer.baseAddress!.withMemoryRebound(
+                        to: DSPDoubleComplex.self,
+                        capacity: halfSize
+                    ) { interleaved in
+                        vDSP_ctozD(interleaved, 2, &split, 1, vDSP_Length(halfSize))
+                    }
+                }
+
+                vDSP_fft_zripD(
+                    fftSetup,
+                    &split,
+                    1,
+                    vDSP_Length(log2(Double(fftSize))),
+                    FFTDirection(FFT_FORWARD)
+                )
+
+                // A real-to-complex forward transform packs Nyquist into imagp[0] — which this
+                // spectrum never reads — and returns every value at twice its true magnitude.
+                split.imagp[0] = 0
+                var scale = 0.5
+                vDSP_vsmulD(split.realp, 1, &scale, split.realp, 1, vDSP_Length(halfSize))
+                vDSP_vsmulD(split.imagp, 1, &scale, split.imagp, 1, vDSP_Length(halfSize))
+                vDSP_zvabsD(&split, 1, &magnitudes, 1, vDSP_Length(halfSize))
+            }
         }
 
         return Spectrum(
             magnitudes: magnitudes,
             binWidth: sampleRate / Double(fftSize)
         )
-    }
-
-    private func fastFourierTransform(real: inout [Double], imaginary: inout [Double]) {
-        let count = real.count
-        var reversedIndex = 0
-
-        for index in 1..<count {
-            var bit = count >> 1
-            while reversedIndex & bit != 0 {
-                reversedIndex ^= bit
-                bit >>= 1
-            }
-            reversedIndex ^= bit
-
-            if index < reversedIndex {
-                real.swapAt(index, reversedIndex)
-                imaginary.swapAt(index, reversedIndex)
-            }
-        }
-
-        var length = 2
-        while length <= count {
-            let angle = -2 * Double.pi / Double(length)
-            let phaseStepReal = cos(angle)
-            let phaseStepImaginary = sin(angle)
-
-            for start in stride(from: 0, to: count, by: length) {
-                var phaseReal = 1.0
-                var phaseImaginary = 0.0
-
-                for offset in 0..<(length / 2) {
-                    let evenIndex = start + offset
-                    let oddIndex = evenIndex + length / 2
-                    let oddReal = real[oddIndex] * phaseReal - imaginary[oddIndex] * phaseImaginary
-                    let oddImaginary = real[oddIndex] * phaseImaginary + imaginary[oddIndex] * phaseReal
-
-                    real[oddIndex] = real[evenIndex] - oddReal
-                    imaginary[oddIndex] = imaginary[evenIndex] - oddImaginary
-                    real[evenIndex] += oddReal
-                    imaginary[evenIndex] += oddImaginary
-
-                    let nextPhaseReal = phaseReal * phaseStepReal - phaseImaginary * phaseStepImaginary
-                    phaseImaginary = phaseReal * phaseStepImaginary + phaseImaginary * phaseStepReal
-                    phaseReal = nextPhaseReal
-                }
-            }
-
-            length <<= 1
-        }
     }
 
     private func detectNote(in spectrum: Spectrum) -> NoteResult {
